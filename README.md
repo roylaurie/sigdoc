@@ -5,6 +5,7 @@ Allows users to review, sign, verify, and package Open Document (ODT) files.
 sigdoc **action** ...
 
 In the ODT file to be signed, place the following term on the signature line:
+
 CRYPTOGRAPHICALLY SIGNED CHECKSUM: *signature-token-name*
 
 Where **signature-token-name** is a simple monicker for the signature needed, like "finance-mycompany" or "bob-smith".
