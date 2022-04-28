@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SIGNATURE_TOKEN_PATTERN="CRYPTOGRAPHIC SIGNATURE FILE:"
+
 function main () {
 	local action="$1"
 	local params="${2-}"
@@ -112,14 +114,18 @@ function package () {
 
 	verify "$filepath"
 
+	local pdf_filepath="$(export_pdf $filepath)"
+
 	local dirpath="$(dirname "$filepath")"
-	local datestamp="$(date "+%Y-%m-%d")"
+	local datestamp="$(datestamp)"
 	local zip_filepath="$(basename "$filepath" .odt) - Signed ${datestamp}.tar.xz"
+
 	local -a input_idx=0
 	local -a input_filepaths
 	input_filepaths[input_idx++]="$filepath"
+	input_filepaths[input_idx++]="$pdf_filepath"
 	input_filepaths[input_idx++]="$filepath.checksum"
-	
+
 	local sig_tokens="$(get_signature_tokens "$filepath")"
 	for sig_token in $sig_tokens; do
 		local sigsum_filepath="${filepath}.${sig_token}.checksum"
@@ -127,17 +133,36 @@ function package () {
 		input_filepaths[input_idx++]="$sigsum_filepath.gpg"
 	done	
 
+
 	tar -cJf "$zip_filepath" -C "$dirpath" "${input_filepaths[@]}"
 
-	for ((i = 1; i < input_idx; ++i)); do
+	for ((i = 2; i < input_idx; ++i)); do
 		rm "${input_filepaths[$i]}"
 	done
+
+	
 }
 
 function get_signature_tokens () {
 	local filepath="$1"
-	local tokens="$(odt2txt "$filepath" | grep "CRYPTOGRAPHICALLY SIGNED CHECKSUM:" | awk '{print $4}')"
+	local tokens="$(odt2txt "$filepath" | grep "$SIGNATURE_TOKEN_PATTERN" | awk '{print $4}')"
 	echo $tokens
+}
+
+function datestamp () {
+	echo "$(date "+%Y-%m-%d")"
+}
+
+function export_pdf () {
+	local filepath="$1"
+
+	libreoffice --headless --nologo --convert-to pdf:writer_pdf_Export --print-to-file "$filepath"
+
+	local export_filepath="$(basename "$filepath" .odt).pdf"
+	local pdf_filepath="$(basename "$filepath" .odt) - Signed $(datestamp).pdf"
+
+	mv "$export_filepath" "$pdf_filepath"
+	echo "$pdf_filepath"
 }
 
 main "$1" "${2-}"
